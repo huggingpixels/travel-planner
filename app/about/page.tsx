@@ -20,8 +20,8 @@ export default function AboutPage() {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [startEndDate, setStartEndDate] = useState({
-    start: parseDate("2024-04-01"),
-    end: parseDate("2024-04-08"),
+    start: {},
+    end: {},
   });
   const [route, setRoute] = useState("");
   const [duration, setDuration] = useState(0);
