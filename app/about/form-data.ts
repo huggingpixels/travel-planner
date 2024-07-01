@@ -8,15 +8,15 @@ export interface CustomerFormData {
     startLocation: string,
     finalPrice: number | null,
     travelDateStart: Date,
-    travelDateStop: Date,
+    travelDateEnd: Date,
     sentToClientDate?: Date,
 }
 
 export const formData: CustomerFormData[] = [
     {
-        email: "eszter1914@gmail.com",
-        name: "nudli kft.",
-        route: "Budapestrol Debrecenbe mert abban nincsenek ékezetek",
+        email: "test@gmail.com",
+        name: "bip kft.",
+        route: "Budapestrol to Paris",
         distance: 500,
         duration: 5,
         numberOfPassangers: 2,
@@ -24,6 +24,6 @@ export const formData: CustomerFormData[] = [
         sentToClientDate: new Date(),
         finalPrice: null,
         travelDateStart: new Date(),
-        travelDateStop: new Date(),
+        travelDateEnd: new Date(),
     }
 ]
