@@ -1,11 +1,11 @@
-import { CustomerFormData } from "./form-data";
-import { PricingData } from "./pricing";
+export function getDurationMetric(duration: number) {
+    return (duration > 23) ? "nap" : "óra";
+}
 
-export function calculateFare(pricingData: PricingData, formData: CustomerFormData) {
-    const rateBase = pricingData.rateBase;
-    const totalDistance = getTotalDistance(pricingData.rateKm, formData.distance);
-    const totalDuration = getTotalDuration(pricingData.rateHour, pricingData.rateDay, formData.duration);
-    const totalDurationMetric = getDurationMetric(formData.duration);
+export function calculateFare(rateKm: number, rateHour: number, rateDay: number, rateBase: number, distance: number, duration: number) {
+    const totalDistance = getTotalDistance(rateKm, distance);
+    const totalDuration = getTotalDuration(rateHour, rateDay, duration);
+    const totalDurationMetric = getDurationMetric(duration);
     const final = getFinal(rateBase, totalDistance, totalDuration);
     const finalVat = final * 0.27;
     const finalTotal = final + finalVat;
@@ -31,9 +31,6 @@ function getTotalDuration(rateHours: number, rateDaily: number, duration: number
     }
 }
 
-function getDurationMetric(duration: number) {
-    return (duration > 23) ? "nap" : "óra";
-}
 
 function getFinal(rateBase: number, totalDistance: number, totalDuration: number) {
     return rateBase + Math.max(totalDistance, totalDuration);

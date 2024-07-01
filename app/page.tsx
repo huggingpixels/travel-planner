@@ -5,11 +5,12 @@ import { title } from "@/components/primitives";
 import { Input } from "@nextui-org/input";
 import { DateRangePicker } from "@nextui-org/date-picker";
 import { Select, SelectItem } from "@nextui-org/select";
-import { Button, ButtonGroup } from "@nextui-org/button";
-import { parseDate } from "@internationalized/date";
+import { Button } from "@nextui-org/button";
 
-import { pricingData, PricingData } from "./pricing";
+import { pricingData } from "./pricing";
 import { InvoiceData } from "./output";
+import { calculateFare, getDurationMetric } from "./service";
+import { validateEmail, validateName } from "./validators";
 
 export default function Home() {
   const [capacity, setCapacity] = useState(0);
@@ -28,6 +29,8 @@ export default function Home() {
   const [distance, setDistance] = useState(0);
   const [numberOfPassangers, setNumberOfPassangers] = useState(0);
   const [startLocation, setStartLocation] = useState("");
+  const [finalPrice, setFinalPrice] = useState(0);
+  const [total, setTotal] = useState(0);
 
   const loadPricing = (event: { target: { value: string; }; }) => {
     const pricing = pricingData.find(pricingItem => pricingItem.id === Number(event.target.value));
@@ -41,43 +44,77 @@ export default function Home() {
   }
 
   const onFormSubmission = () => {
+    const total = calculateFare(
+      rateKm,
+      rateHour,
+      rateDay,
+      rateBase,
+      distance,
+      duration,
+    );
+    const durationMetric = getDurationMetric(duration);
     const data: InvoiceData = {
       email,
       name,
       route,
       duration,
-      durationMetric: "",
+      durationMetric,
       distance,
       numberOfPassangers,
       startLocation,
-      finalPrice: 0,
-      finalVat: 0,
-      finalTotal: 0,
+      finalPrice: total.final,
+      finalVat: total.finalVat,
+      finalTotal: total.finalTotal,
       travelDateStart: startEndDate.start,
       travelDateStop: startEndDate.end
     };
     console.log(data);
   }
 
+  const isEmailInvalid = React.useMemo(() => {
+    if (email === "") return true;
+
+    return validateEmail(email) ? false : true;
+  }, [email]);
+
+  const isNameInvalid = React.useMemo(() => {
+    if (name === "") return true;
+
+    return validateName(name) ? false : true;
+  }, [name]);
+
   return (
     <div >
       <h1 className={title()}>Ajánlat generátor béta!</h1>
       <div className="w-full flex-wrap md:flex-nowrap grid grid-cols-1 gap-4 py-10">
-        <div className="w-full flex-wrap md:flex-nowrap grid grid-cols-2 gap-4">
-          <Input type="email" onValueChange={setEmail} label="Ügyfél e-mail" />
-          <Input label="Ügyfél neve" onValueChange={setName} isClearable />
-          <DateRangePicker label="Utazás ideje" className="max-w-xs" onChange={(value) => setStartEndDate(value)} />
-          <Input label="Útvonal" onValueChange={setRoute} isClearable />
-          <Input label="Utazás idotartama" onValueChange={(value) => setDuration(Number(value))} />
-          <Input label="Távolság" onValueChange={(value) => setDistance(Number(value))} />
-          <Input label="Utasok száma" onValueChange={(value) => setNumberOfPassangers(Number(value))} />
-          <Input label="Indulási hely" onValueChange={setStartLocation} isClearable />
+        <h2>Ügyfél adatai</h2>
+        <div className="w-full flex-wrap md:flex-nowrap grid md:grid-cols-2 gap-4">
+          <Input type="email" isRequired onValueChange={setEmail} label="E-mail" isInvalid={isEmailInvalid}
+            errorMessage="Please enter a valid email" />
+          <Input label="Név" isRequired onValueChange={setName} isClearable isInvalid={isNameInvalid}
+            errorMessage="Please enter a valid name" />
         </div>
 
-        <div className="w-full flex-wrap md:flex-nowrap grid grid-cols-1 gap-4 py-10">
+        <h2>Utazás adatai</h2>
+        <div className="w-full flex-wrap md:flex-nowrap grid md:grid-cols-2 gap-4">
+          <DateRangePicker label="Utazás ideje" isRequired onChange={(value) => setStartEndDate(value)} />
+          <Input label="Utazás idotartama" type="number" onValueChange={(value) => setDuration(Number(value))} endContent={
+            <div className="pointer-events-none flex items-center">
+              <span className="text-default-400 text-small">Óra</span>
+            </div>
+          } />
+          <Input label="Indulási hely" onValueChange={setStartLocation} isClearable />
+          <Input label="Útvonal" onValueChange={setRoute} isClearable />
+          <Input label="Távolság Kilométerben" type="number" onValueChange={(value) => setDistance(Number(value))} />
+          <Input label="Utasok száma" type="number" onValueChange={(value) => setNumberOfPassangers(Number(value))} />
+        </div>
+
+        <h2>Árazás</h2>
+        <div className="w-full flex-wrap md:flex-nowrap grid md:grid-cols-4 gap-4">
           <Select
             label="Árazás"
-            placeholder="Select an animal"
+            placeholder="Elmentett árazások"
+            className="md:col-span-2"
             onChange={loadPricing}
           >
             {pricingData.map((pricing) => (
@@ -86,6 +123,9 @@ export default function Home() {
               </SelectItem>
             ))}
           </Select>
+        </div>
+
+        <div className="w-full flex-wrap md:flex-nowrap grid md:grid-cols-2 gap-4 py-1">
           <Input label="Kilométer díj"
             type="number"
             value={rateKm.toString()}
@@ -129,8 +169,12 @@ export default function Home() {
                 <span className="text-default-400 text-small">HUF</span>
               </div>
             } />
+
+        </div>
+        <div className="w-full flex-wrap md:flex-nowrap grid md:grid-cols-4 gap-4 py-10">
           <Input label="Nettó ár"
             type="number"
+            onValueChange={(value) => setFinalPrice(Number(value))}
             endContent={
               <div className="pointer-events-none flex items-center">
                 <span className="text-default-400 text-small">HUF</span>
@@ -138,13 +182,13 @@ export default function Home() {
             } />
           <Input label="Bruttó ár" color="success"
             type="number"
+            onValueChange={(value) => setTotal(Number(value))}
             endContent={
               <div className="pointer-events-none flex items-center">
                 <span className="text-default-400 text-small">HUF</span>
               </div>
             } />
-
-          <Button color="primary" onPress={onFormSubmission}>
+          <Button className="md:col-span-2 md:col-start-1" color="primary" onPress={onFormSubmission}>
             Ajánlatküldés
           </Button>
         </div>

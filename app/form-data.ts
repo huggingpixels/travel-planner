@@ -6,10 +6,10 @@ export interface CustomerFormData {
     duration: number,
     numberOfPassangers: number,
     startLocation: string,
-    finalPrice: number | null,
-    travelDateStart: Date,
-    travelDateEnd: Date,
-    sentToClientDate?: Date,
+    finalPrice?: number | null,
+    travelDateStart: object,
+    travelDateEnd: object,
+    sentToClientDate?: object,
 }
 
 export const formData: CustomerFormData[] = [
