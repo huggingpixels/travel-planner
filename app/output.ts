@@ -1,16 +1,24 @@
 export interface InvoiceData {
-  email: string;
-  name: string;
-  route: string;
-  duration: number;
-  durationMetric: string;
-  distance: number;
-  numberOfPassangers: number;
-  startLocation: string;
-  finalPrice: number;
-  finalVat: number;
-  finalTotal: number;
+  customerEmail: string;
+  customerName: string;
+  tripDateRangeStart: string;
+  tripDateRangeEnd: string;
+  tripDays: number;
+  tripHours: number;
+  tripStartLocation: string;
+  tripRoute: string;
+  tripDuration: number;
+  tripDurationMetric: string;
+  tripDistance: number;
+  tripPassengers: number;
+  rateKm: number;
+  rateHourly: number;
+  rateDaily: number;
+  rateBase: number;
+  rateHighway: number;
+  rateFix: number;
+  finalNet: number;
+  finalVAT: number;
+  finalGross: number;
   sentToClientDate?: unknown;
-  travelDateStart: unknown;
-  travelDateStop: unknown;
 }

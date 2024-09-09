@@ -8,30 +8,65 @@ import { Button } from "@nextui-org/button";
 
 import { pricingData } from "./pricing";
 import { InvoiceData } from "./output";
-import { calculateFare, getDurationMetric } from "./service";
+import { calculateFare, convertDateToDays, convertDateToString } from "./service";
 import { validateEmail, validateName } from "./validators";
 
 import { title } from "@/components/primitives";
+import { DateValue } from "@internationalized/date";
+import { RangeValue } from "@react-types/shared";
 
 export default function Home() {
-  const [capacity, setCapacity] = useState(0);
-  const [rateKm, setRateKm] = useState(0);
-  const [rateHour, setRateHour] = useState(0);
-  const [rateDay, setRateDay] = useState(0);
-  const [rateBase, setRateBase] = useState(0);
-  const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
-  const [startEndDate, setStartEndDate] = useState({
-    start: {},
-    end: {},
-  });
-  const [route, setRoute] = useState("");
-  const [duration, setDuration] = useState(0);
-  const [distance, setDistance] = useState(0);
-  const [numberOfPassangers, setNumberOfPassangers] = useState(0);
-  const [startLocation, setStartLocation] = useState("");
-  const [finalPrice, setFinalPrice] = useState(0);
-  const [total, setTotal] = useState(0);
+  const [formData, setFormData] = useState(
+    {
+      customerEmail: "",
+      customerName: "",
+      tripDateRangeStart: "",
+      tripDateRangeEnd: "",
+      tripDays: 0,
+      tripHours: 0,
+      tripStartLocation: "",
+      tripRoute: "",
+      tripDistance: 0,
+      tripPassengers: 0,
+      rateKm: 0,
+      rateHourly: 0,
+      rateDaily: 0,
+      rateBase: 0,
+      rateHighway: 0,
+      rateFix: 0,
+      finalNet: 0,
+      finalGross: 0,
+    } as InvoiceData
+  );
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData((prevFormData) => {
+      const changedFormData = {
+        ...prevFormData,
+        [name]: value,
+      };
+      return {
+        ...changedFormData,
+        ...calculateFare(changedFormData),
+      }
+    });
+  };
+
+  const handleRangePicker = (value: RangeValue<DateValue>) => {
+    setFormData((prevFormData) => {
+      const changedFormData = {
+        ...prevFormData,
+        tripDateRangeStart: convertDateToString(value.start),
+        tripDateRangeEnd: convertDateToString(value.end),
+        tripDays: convertDateToDays(value),
+      };
+      return {
+        ...changedFormData,
+        ...calculateFare(changedFormData),
+      }
+    });
+  };
 
   const loadPricing = (event: { target: { value: string } }) => {
     const pricing = pricingData.find(
@@ -39,54 +74,39 @@ export default function Home() {
     );
 
     if (pricing) {
-      setCapacity(pricing.capacity);
-      setRateKm(pricing.rateKm);
-      setRateHour(pricing.rateHour);
-      setRateDay(pricing.rateDay);
-      setRateBase(pricing.rateBase);
-    }
+      setFormData((prevFormData) => {
+        const changeFormData = {
+          ...prevFormData,
+          rateKm: pricing.rateKm,
+          rateHourly: pricing.rateHour,
+          rateDaily: pricing.rateDay,
+          rateBase: pricing.rateBase,
+        };
+        return {
+          ...changeFormData,
+          ...calculateFare(changeFormData),
+        };
+      });
+
+    };
+
   };
 
   const onFormSubmission = () => {
-    const total = calculateFare(
-      rateKm,
-      rateHour,
-      rateDay,
-      rateBase,
-      distance,
-      duration,
-    );
-    const durationMetric = getDurationMetric(duration);
-    const data: InvoiceData = {
-      email,
-      name,
-      route,
-      duration,
-      durationMetric,
-      distance,
-      numberOfPassangers,
-      startLocation,
-      finalPrice: total.final,
-      finalVat: total.finalVat,
-      finalTotal: total.finalTotal,
-      travelDateStart: startEndDate.start,
-      travelDateStop: startEndDate.end,
-    };
-
-    console.log(data);
+    console.log(formData);
   };
 
   const isEmailInvalid = React.useMemo(() => {
-    if (email === "") return true;
+    if (formData.customerEmail === "") return true;
 
-    return validateEmail(email) ? false : true;
-  }, [email]);
+    return validateEmail(formData.customerEmail) ? false : true;
+  }, [formData.customerEmail]);
 
   const isNameInvalid = React.useMemo(() => {
-    if (name === "") return true;
+    if (formData.customerName === "") return true;
 
-    return validateName(name) ? false : true;
-  }, [name]);
+    return validateName(formData.customerName) ? false : true;
+  }, [formData.customerName]);
 
   return (
     <div>
@@ -99,8 +119,9 @@ export default function Home() {
             errorMessage="Please enter a valid email"
             isInvalid={isEmailInvalid}
             label="E-mail"
+            name="customerEmail"
             type="email"
-            onValueChange={setEmail}
+            onChange={handleInputChange}
           />
           <Input
             isClearable
@@ -108,7 +129,8 @@ export default function Home() {
             errorMessage="Please enter a valid name"
             isInvalid={isNameInvalid}
             label="Név"
-            onValueChange={setName}
+            name="customerName"
+            onChange={handleInputChange}
           />
         </div>
 
@@ -117,7 +139,7 @@ export default function Home() {
           <DateRangePicker
             isRequired
             label="Utazás ideje"
-            onChange={(value) => setStartEndDate(value)}
+            onChange={(value) => handleRangePicker(value)}
           />
           <Input
             endContent={
@@ -126,24 +148,33 @@ export default function Home() {
               </div>
             }
             label="Utazás idotartama"
+            name="tripHours"
             type="number"
-            onValueChange={(value) => setDuration(Number(value))}
+            onChange={handleInputChange}
           />
           <Input
             isClearable
             label="Indulási hely"
-            onValueChange={setStartLocation}
+            name="tripStartLocation"
+            onChange={handleInputChange}
           />
-          <Input isClearable label="Útvonal" onValueChange={setRoute} />
+          <Input
+            isClearable
+            label="Útvonal"
+            name="tripRoute"
+            onChange={handleInputChange}
+          />
           <Input
             label="Távolság Kilométerben"
+            name="tripDistance"
             type="number"
-            onValueChange={(value) => setDistance(Number(value))}
+            onChange={handleInputChange}
           />
           <Input
             label="Utasok száma"
+            name="tripPassengers"
             type="number"
-            onValueChange={(value) => setNumberOfPassangers(Number(value))}
+            onChange={handleInputChange}
           />
         </div>
 
@@ -152,6 +183,7 @@ export default function Home() {
           <Select
             className="md:col-span-2"
             label="Árazás"
+            name="customerName"
             placeholder="Elmentett árazások"
             onChange={loadPricing}
           >
@@ -169,9 +201,10 @@ export default function Home() {
               </div>
             }
             label="Kilométer díj"
+            name="rateKm"
             type="number"
-            value={rateKm.toString()}
-            onValueChange={(value) => setRateKm(Number(value))}
+            value={formData.rateKm.toString()}
+            onChange={handleInputChange}
           />
           <Input
             endContent={
@@ -180,9 +213,10 @@ export default function Home() {
               </div>
             }
             label="Óra díj"
+            name="rateHourly"
             type="number"
-            value={rateHour.toString()}
-            onValueChange={(value) => setRateHour(Number(value))}
+            value={formData.rateHourly.toString()}
+            onChange={handleInputChange}
           />
           <Input
             endContent={
@@ -191,9 +225,10 @@ export default function Home() {
               </div>
             }
             label="Napi díj"
+            name="rateDaily"
             type="number"
-            value={rateDay.toString()}
-            onValueChange={(value) => setRateDay(Number(value))}
+            value={formData.rateDaily.toString()}
+            onChange={handleInputChange}
           />
           <Input
             endContent={
@@ -202,9 +237,10 @@ export default function Home() {
               </div>
             }
             label="Alapdíj"
+            name="rateBase"
             type="number"
-            value={rateBase.toString()}
-            onValueChange={(value) => setRateBase(Number(value))}
+            value={formData.rateBase.toString()}
+            onChange={handleInputChange}
           />
           <Input
             endContent={
@@ -213,20 +249,25 @@ export default function Home() {
               </div>
             }
             label="Autópálya díj"
+            name="rateHighway"
             type="number"
+            value={formData.rateHighway.toString()}
+            onChange={handleInputChange}
           />
-        </div>
-        <div className="w-full flex-wrap md:flex-nowrap grid md:grid-cols-4 gap-4 py-10">
           <Input
             endContent={
               <div className="pointer-events-none flex items-center">
                 <span className="text-default-400 text-small">HUF</span>
               </div>
             }
-            label="Nettó ár"
+            label="Fix díj"
+            name="rateFix"
             type="number"
-            onValueChange={(value) => setFinalPrice(Number(value))}
+            value={formData.rateFix.toString()}
+            onChange={handleInputChange}
           />
+        </div>
+        <div className="w-full flex-wrap md:flex-nowrap grid md:grid-cols-4 gap-4 py-10">
           <Input
             color="success"
             endContent={
@@ -234,9 +275,24 @@ export default function Home() {
                 <span className="text-default-400 text-small">HUF</span>
               </div>
             }
-            label="Bruttó ár"
+            label="Nettó ár"
+            name="finalNet"
             type="number"
-            onValueChange={(value) => setTotal(Number(value))}
+            value={formData.finalNet.toString()}
+            readOnly
+          />
+          <Input
+            color="primary"
+            endContent={
+              <div className="pointer-events-none flex items-center">
+                <span className="text-default-400 text-small">HUF</span>
+              </div>
+            }
+            label="Bruttó ár"
+            name="finalGross"
+            type="number"
+            value={formData.finalGross.toString()}
+            readOnly
           />
           <Button
             className="md:col-span-2 md:col-start-1"
