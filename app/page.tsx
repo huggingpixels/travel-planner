@@ -5,51 +5,79 @@ import { Input } from "@nextui-org/input";
 import { DateRangePicker } from "@nextui-org/date-picker";
 import { Select, SelectItem } from "@nextui-org/select";
 import { Button } from "@nextui-org/button";
-
-import { pricingData } from "./pricing";
-import { InvoiceData } from "./output";
-import { calculateFare, convertDateToDays, convertDateToString } from "./service";
-import { validateEmail, validateName } from "./validators";
-
-import { title } from "@/components/primitives";
 import { DateValue } from "@internationalized/date";
 import { RangeValue } from "@react-types/shared";
+import {
+  Table,
+  TableHeader,
+  TableColumn,
+  TableBody,
+  TableRow,
+  TableCell,
+} from "@nextui-org/react";
+
+import { pricingData } from "./pricing";
+import { OrderData } from "./output";
+import {
+  convertDateToDays,
+  convertDateToString,
+  displayForint,
+  generateOrder,
+  OrderInput,
+  TotalItem,
+  TripData,
+} from "./service";
+import { validateEmail, validateName } from "./validators";
+import { PDFDownloadLink, Order } from "./order";
+
+import { title } from "@/components/primitives";
 
 export default function Home() {
-  const [formData, setFormData] = useState(
-    {
-      customerEmail: "",
-      customerName: "",
-      tripDateRangeStart: "",
-      tripDateRangeEnd: "",
-      tripDays: 0,
-      tripHours: 0,
-      tripStartLocation: "",
-      tripRoute: "",
-      tripDistance: 0,
-      tripPassengers: 0,
-      rateKm: 0,
-      rateHourly: 0,
-      rateDaily: 0,
-      rateBase: 0,
-      rateHighway: 0,
-      rateFix: 0,
-      finalNet: 0,
-      finalGross: 0,
-    } as InvoiceData
-  );
+  const [formData, setFormData] = useState({
+    customerEmail: "",
+    customerName: "",
+    tripDateRangeStart: "",
+    tripDateRangeEnd: "",
+    tripDays: 0,
+    tripHours: 0,
+    tripStartLocation: "",
+    tripRoute: "",
+    tripDistance: 0,
+    tripPassengers: 0,
+    rateKm: 0,
+    rateHourly: 0,
+    rateDaily: 0,
+    rateBase: 0,
+    rateHighway: 0,
+    rateFix: 0,
+    finalNet: 0,
+    finalGross: 0,
+  } as OrderData);
+
+  const [orderTable, setOrderTable] = useState({
+    customerEmail: "",
+    customerName: "",
+    tripDate: "",
+    tripStartLocation: "",
+    tripRoute: "",
+    tripPassengers: 0,
+    tripDuration: {} as TripData,
+    orderItems: [],
+    total: [] as TotalItem[],
+  } as OrderInput);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+
     setFormData((prevFormData) => {
       const changedFormData = {
         ...prevFormData,
         [name]: value,
       };
-      return {
-        ...changedFormData,
-        ...calculateFare(changedFormData),
-      }
+
+      setOrderTable(() => generateOrder(changedFormData));
+
+      return changedFormData;
     });
   };
 
@@ -61,10 +89,10 @@ export default function Home() {
         tripDateRangeEnd: convertDateToString(value.end),
         tripDays: convertDateToDays(value),
       };
-      return {
-        ...changedFormData,
-        ...calculateFare(changedFormData),
-      }
+
+      setOrderTable(() => generateOrder(changedFormData));
+
+      return changedFormData;
     });
   };
 
@@ -75,25 +103,19 @@ export default function Home() {
 
     if (pricing) {
       setFormData((prevFormData) => {
-        const changeFormData = {
+        const changedFormData = {
           ...prevFormData,
           rateKm: pricing.rateKm,
           rateHourly: pricing.rateHour,
           rateDaily: pricing.rateDay,
           rateBase: pricing.rateBase,
         };
-        return {
-          ...changeFormData,
-          ...calculateFare(changeFormData),
-        };
+
+        setOrderTable(() => generateOrder(changedFormData));
+
+        return changedFormData;
       });
-
-    };
-
-  };
-
-  const onFormSubmission = () => {
-    console.log(formData);
+    }
   };
 
   const isEmailInvalid = React.useMemo(() => {
@@ -107,6 +129,13 @@ export default function Home() {
 
     return validateName(formData.customerName) ? false : true;
   }, [formData.customerName]);
+
+  const netTotalAmount = orderTable.total?.find((elem) => elem.id == "net");
+  const grossTotalAmount = orderTable.total?.find((elem) => elem.id == "gross");
+
+  const filename = orderTable.tripStartLocation && orderTable.tripStartLocation !== '' && orderTable.tripDate && orderTable.tripDate !== '' 
+  ? `arajanlat-${orderTable.tripStartLocation}-${orderTable.tripDate}`.replaceAll(' ', '').replaceAll('.','')
+  : `arajanlat-${new Date().toISOString()}`;
 
   return (
     <div>
@@ -269,6 +298,7 @@ export default function Home() {
         </div>
         <div className="w-full flex-wrap md:flex-nowrap grid md:grid-cols-4 gap-4 py-10">
           <Input
+            readOnly
             color="success"
             endContent={
               <div className="pointer-events-none flex items-center">
@@ -278,10 +308,10 @@ export default function Home() {
             label="Nettó ár"
             name="finalNet"
             type="number"
-            value={formData.finalNet.toString()}
-            readOnly
+            value={netTotalAmount ? netTotalAmount.amount.toString() : ""}
           />
           <Input
+            readOnly
             color="primary"
             endContent={
               <div className="pointer-events-none flex items-center">
@@ -291,16 +321,50 @@ export default function Home() {
             label="Bruttó ár"
             name="finalGross"
             type="number"
-            value={formData.finalGross.toString()}
-            readOnly
+            value={grossTotalAmount ? grossTotalAmount.amount.toString() : ""}
           />
-          <Button
+
+          <div className="md:col-span-2 md:col-start-1">
+            <PDFDownloadLink
+              document={<Order order={generateOrder(formData)} />}
+              fileName={`${filename}.pdf`}
+            >
+              {({ blob, url, loading, error }) =>
+                loading ? (
+                  <Button isDisabled={true}>Generalás...</Button>
+                ) : (
+                  <Button color="primary">Ajánlat letöltése</Button>
+                )
+              }
+            </PDFDownloadLink>
+          </div>
+        </div>
+        <div>
+          <Table
+            aria-label="Summary table"
             className="md:col-span-2 md:col-start-1"
-            color="primary"
-            onPress={onFormSubmission}
           >
-            Ajánlatküldés
-          </Button>
+            <TableHeader>
+              <TableColumn>Díjtétel</TableColumn>
+              <TableColumn>Egységár</TableColumn>
+              <TableColumn>Mennyiség</TableColumn>
+              <TableColumn>Összeg</TableColumn>
+            </TableHeader>
+            <TableBody>
+              {orderTable.orderItems.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell>{item.description}</TableCell>
+                  <TableCell>{displayForint(item.price)}</TableCell>
+                  <TableCell>
+                    {item.quantity > 1 ? item.quantity : ""}
+                  </TableCell>
+                  <TableCell>
+                    {displayForint(item.price * item.quantity)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       </div>
     </div>

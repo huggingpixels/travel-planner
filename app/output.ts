@@ -1,4 +1,4 @@
-export interface InvoiceData {
+export interface OrderData {
   customerEmail: string;
   customerName: string;
   tripDateRangeStart: string;
